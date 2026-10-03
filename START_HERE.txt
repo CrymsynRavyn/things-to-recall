@@ -1,0 +1,176 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                     THINGS TO RECALL - START HERE                           ║
+║            Voice-first reminder app for ADHD-friendly workflows              ║
+║                   Built for Hacktoberfest 2026                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+WHAT YOU HAVE
+─────────────────────────────────────────────────────────────────────────────
+
+✓ A working web app (HTML/JS frontend + Python backend)
+✓ Open-source AI (Whisper + Ollama + Gemma, all local)
+✓ ADHD-friendly design (one button, zero friction)
+✓ Complete setup instructions
+✓ Demo script for video
+✓ Architecture docs for deep dive
+
+FILE GUIDE
+─────────────────────────────────────────────────────────────────────────────
+
+READ FIRST:
+  START_HERE.txt           ← You're reading it!
+  QUICK_START.md           ← 5-minute setup (beginners)
+
+FOR RUNNING THE APP:
+  app.py                   ← Python backend (start this)
+  index.html               ← Web frontend (open in browser)
+  requirements.txt         ← Python dependencies
+
+FOR YOUR SUBMISSION:
+  README.md                ← Main documentation
+  DEMO_SCRIPT.md           ← Video demo talking points
+  SUBMISSION_CHECKLIST.md  ← What to do before Monday Oct 5
+  ARCHITECTURE.md          ← Technical details (judges like this)
+
+QUICK START (5 MINUTES)
+─────────────────────────────────────────────────────────────────────────────
+
+Step 1: Install Ollama
+  Download from https://ollama.ai
+  Run: ollama run gemma
+  (Leave this running in Terminal #1)
+
+Step 2: Install Python Dependencies
+  pip install -r requirements.txt
+
+Step 3: Start Backend
+  python app.py
+  (Leave this running in Terminal #2)
+
+Step 4: Open Browser
+  Go to: http://localhost:5000
+  Press the big button 🎤
+  Talk!
+
+WHAT IT DOES
+─────────────────────────────────────────────────────────────────────────────
+
+1. Press button → Hold while speaking
+2. AI listens → Whisper transcribes → Gemma extracts reminder
+3. Reminder appears in list
+4. Check it off → Fades away → 10-second undo window
+5. After 10 seconds → Gone forever (intentional)
+
+KEY FEATURES
+─────────────────────────────────────────────────────────────────────────────
+
+[✓] Voice-first UI
+[✓] Local AI inference (no cloud, no API keys)
+[✓] Undo feature (10-second window)
+[✓] Lined notepaper aesthetic
+[✓] Big touch targets (mobile-friendly)
+[✓] Persistent storage (JSON file)
+[✓] One button (entire UX)
+
+TECH STACK
+─────────────────────────────────────────────────────────────────────────────
+
+Frontend:     HTML/CSS/JavaScript (one file, no build step)
+Backend:      Python + Flask
+Speech:       Whisper (OpenAI, open-source)
+AI:           Ollama + Gemma (local, open-weight)
+Storage:      JSON file (reminders.json)
+All Local:    ✓ No cloud, ✓ No API keys, ✓ 100% privacy
+
+FOR HACKTOBERFEST
+─────────────────────────────────────────────────────────────────────────────
+
+Deadline: Monday Oct 5, 2026
+
+Your tasks:
+  1. Test the app (Friday) - 30 min
+  2. Film a demo video (Friday) - 20 min
+  3. Write a blog post (Saturday) - 30 min
+  4. Create GitHub repo (Saturday) - 15 min
+  5. Register with Hacktoberfest (Sunday) - 10 min
+
+Start with: SUBMISSION_CHECKLIST.md
+
+WINNING PITCH
+─────────────────────────────────────────────────────────────────────────────
+
+"Most apps try to do everything. This does ONE thing for ONE person:
+ help people with ADHD remember. No menus. No friction. One button.
+ 
+ Built entirely with open-source AI (Whisper, Ollama, Gemma), running
+ locally with zero cloud dependency. Code is readable, teachable, and
+ designed to be remixed."
+
+Demo video: Press button → speak → reminder appears → undo → delete
+
+Talking points:
+  ✓ Accessibility-first design
+  ✓ Open-source at every layer
+  ✓ Built in one weekend
+  ✓ Solves a real problem
+  ✓ Code is clean and readable
+
+TROUBLESHOOTING
+─────────────────────────────────────────────────────────────────────────────
+
+Problem                  → Solution
+─────────────────────────────────────────────────────────────────────────────
+"Ollama not running"     → Run: ollama run gemma (Terminal #1)
+"Backend not running"    → Run: python app.py (Terminal #2)
+Microphone won't work    → Allow localhost:5000 mic permission in browser
+App is slow (first run)  → Whisper downloads 75MB model (~30 sec), then fast
+Reminders are gibberish  → Speak more clearly, shorter sentences
+
+See: README.md for full troubleshooting guide
+
+WHAT HAPPENS AFTER
+─────────────────────────────────────────────────────────────────────────────
+
+✓ Build and test: Friday 🏗️
+✓ Film and write: Saturday 🎬
+✓ Submit: Sunday 📤
+✓ Get credited: Monday 🎉
+
+Then extend it:
+  - Cloud sync
+  - Categories/tags
+  - Recurring reminders
+  - Integrations
+
+For now: Ship it. Done > Perfect.
+
+NEXT STEPS
+─────────────────────────────────────────────────────────────────────────────
+
+1. Read: QUICK_START.md (5 min)
+2. Run: Follow those steps (15 min)
+3. Test: Press button, speak, verify it works (5 min)
+4. Plan: Read DEMO_SCRIPT.md (5 min)
+5. Film: Record your demo (20 min)
+6. Submit: Follow SUBMISSION_CHECKLIST.md (Sunday)
+
+Total setup time: ~50 minutes
+
+Questions? See:
+  QUICK_START.md           ← Setup help
+  README.md                ← General docs
+  ARCHITECTURE.md          ← Technical details
+  DEMO_SCRIPT.md           ← How to show it
+  SUBMISSION_CHECKLIST.md  ← What to do next
+
+YOU'VE GOT THIS 🚀
+
+One big button. That's the whole app.
+One weekend. That's how long it took.
+One person. That's who uses it.
+
+Go build something amazing.
+
+─────────────────────────────────────────────────────────────────────────────
+Things to Recall | Built for Hacktoberfest 2026 | Open Source | MIT License
+─────────────────────────────────────────────────────────────────────────────
