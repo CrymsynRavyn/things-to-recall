@@ -6,7 +6,7 @@ Backend: Flask + Whisper + Ollama (Gemma)
 
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-from faster_whisper import WhisperModel
+import whisper
 import requests
 import json
 import os
@@ -81,11 +81,11 @@ def transcribe():
         temp_path = tmp.name
     
     try:
-        # Transcribe with faster-whisper (optimized for CPU)
-        print("Transcribing with faster-whisper (int8, CPU)...")
-        model = WhisperModel("base", device="cpu", compute_type="int8")
-        segments, info = model.transcribe(temp_path)
-        transcription = " ".join([segment.text for segment in segments]).strip()
+        # Transcribe with Whisper
+        print("Transcribing with Whisper...")
+        model = whisper.load_model("base")
+        result = model.transcribe(temp_path)
+        transcription = result["text"].strip()
         
         if not transcription:
             return jsonify({"error": "Could not transcribe audio"}), 400
@@ -213,9 +213,9 @@ def health():
     """Health check + dependency status"""
     status = {"app": "ok"}
     
-    # Check faster-whisper
+    # Check Whisper
     try:
-        WhisperModel("base", device="cpu", compute_type="int8")
+        whisper.load_model("base", in_memory=False)
         status["whisper"] = "ok"
     except:
         status["whisper"] = "not available"
