@@ -363,12 +363,11 @@
             recognition.lang = "en-US";
 
             recognition.onstart = () => {
-                isRecording = true;
-                talkButton.classList.add("recording");
-                showStatus("Listening...", "loading");
+                console.log("Recognition started");
             };
 
             recognition.onend = () => {
+                console.log("Recognition ended");
                 isRecording = false;
                 talkButton.classList.remove("recording");
             };
@@ -382,14 +381,27 @@
 
             recognition.onresult = async (event) => {
                 let transcript = "";
+                let isFinal = false;
+                
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     transcript += event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        isFinal = true;
+                    }
                 }
 
-                if (transcript.trim()) {
-                    await handleTranscription(transcript);
-                } else {
-                    showStatus("No speech detected", "error");
+                console.log("Speech result:", { transcript, isFinal });
+
+                // Only process final results
+                if (isFinal) {
+                    if (transcript.trim()) {
+                        console.log("Final result, stopping and processing");
+                        recognition.stop(); // Stop listening immediately
+                        await handleTranscription(transcript);
+                    } else {
+                        showStatus("No speech detected", "error");
+                        recognition.stop();
+                    }
                 }
             };
         }
@@ -428,18 +440,37 @@
             if (isRecording) return;
             
             try {
+                isRecording = true;
+                talkButton.classList.add("recording");
+                showStatus("Listening...", "loading");
                 recognition.start();
+                
+                // Timeout after 10 seconds of listening
+                setTimeout(() => {
+                    if (isRecording) {
+                        console.log("Listening timeout - stopping");
+                        recognition.stop();
+                    }
+                }, 10000);
             } catch (e) {
-                console.log("Recognition already started");
+                console.log("Recognition error:", e);
+                isRecording = false;
+                talkButton.classList.remove("recording");
             }
         }
 
         function stopRecording(e) {
             if (!isRecording || !recognition) return;
-            recognition.stop();
+            console.log("Stopping recognition");
+            try {
+                recognition.stop();
+            } catch (e) {
+                console.log("Error stopping recognition:", e);
+            }
         }
 
         async function handleTranscription(transcript) {
+            console.log("Handling transcription:", transcript);
             showStatus("Thinking...", "loading");
 
             try {
@@ -456,6 +487,7 @@
 
                 if (!res.ok) {
                     const error = await res.json();
+                    console.error("API error:", error);
                     showStatus("Could not process: " + (error.error || "Unknown error"), "error");
                     return;
                 }
@@ -470,6 +502,9 @@
             } catch (e) {
                 console.error("Error:", e);
                 showStatus("Error: " + e.message, "error");
+            } finally {
+                isRecording = false;
+                talkButton.classList.remove("recording");
             }
         }
 
