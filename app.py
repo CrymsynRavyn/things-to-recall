@@ -88,7 +88,10 @@ def transcribe():
     try:
         # Transcribe with faster-whisper (model loaded at startup)
         print("Transcribing with faster-whisper...")
-        segments, info = whisper_model.transcribe(temp_path)
+        segments, info = whisper_model.transcribe(
+            temp_path,
+            hotwords="Mordecai Food Lion"
+        )
         transcription = " ".join([segment.text for segment in segments]).strip()
         
         if not transcription:
@@ -216,6 +219,27 @@ def delete_reminder(reminder_id):
     
     save_reminders(data)
     return jsonify({"success": True})
+
+@app.route("/api/reminders/<int:reminder_id>", methods=["PUT"])
+def update_reminder(reminder_id):
+    """Edit reminder text"""
+    req_data = request.get_json()
+    new_text = req_data.get("text", "").strip()
+    
+    if not new_text:
+        return jsonify({"error": "Text cannot be empty"}), 400
+    
+    data = load_reminders()
+    
+    # Find and update in active reminders
+    for reminder in data["active"]:
+        if reminder["id"] == reminder_id:
+            reminder["text"] = new_text
+            save_reminders(data)
+            return jsonify({"success": True, "reminder": reminder})
+    
+    # Not found
+    return jsonify({"error": "Reminder not found"}), 404
 
 @app.route("/health", methods=["GET"])
 def health():

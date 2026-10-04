@@ -524,7 +524,7 @@
                     <div class="checkbox-wrapper">
                         <input type="checkbox" class="checkbox" id="check-${reminder.id}">
                     </div>
-                    <div class="reminder-text">${escapeHtml(reminder.text)}</div>
+                    <div class="reminder-text" id="text-${reminder.id}" style="cursor: pointer; user-select: none;">${escapeHtml(reminder.text)}</div>
                 `;
 
                 const checkbox = div.querySelector(".checkbox");
@@ -533,9 +533,89 @@
                         completeReminder(reminder.id, div);
                     }
                 });
+
+                // Tap to edit
+                const textEl = div.querySelector(".reminder-text");
+                textEl.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    enterEditMode(reminder.id, reminder.text, textEl);
+                });
             }
 
             return div;
+        }
+
+        function enterEditMode(reminderId, currentText, textEl) {
+            const input = document.createElement("input");
+            input.type = "text";
+            input.value = currentText;
+            input.style.cssText = "width: 100%; padding: 8px; border: 2px solid #4a7ba7; border-radius: 4px; font-size: 16px;";
+
+            const saveBtn = document.createElement("button");
+            saveBtn.textContent = "Save";
+            saveBtn.style.cssText = "margin-left: 8px; padding: 6px 12px; background: #4a7ba7; color: white; border: none; border-radius: 4px; cursor: pointer;";
+
+            const wrapper = document.createElement("div");
+            wrapper.style.cssText = "display: flex; gap: 8px;";
+            wrapper.appendChild(input);
+            wrapper.appendChild(saveBtn);
+
+            textEl.replaceWith(wrapper);
+            input.focus();
+            input.select();
+
+            async function saveEdit() {
+                const newText = input.value.trim();
+                if (!newText) {
+                    alert("Reminder cannot be empty");
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`${API_URL}/api/reminders/${reminderId}`, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ text: newText })
+                    });
+
+                    if (res.ok) {
+                        // Restore text element with updated text
+                        const newTextEl = document.createElement("div");
+                        newTextEl.className = "reminder-text";
+                        newTextEl.id = `text-${reminderId}`;
+                        newTextEl.textContent = newText;
+                        newTextEl.style.cssText = "cursor: pointer; user-select: none;";
+                        newTextEl.addEventListener("click", (e) => {
+                            e.stopPropagation();
+                            enterEditMode(reminderId, newText, newTextEl);
+                        });
+                        wrapper.replaceWith(newTextEl);
+                    } else {
+                        alert("Could not save reminder");
+                    }
+                } catch (e) {
+                    alert("Error saving: " + e.message);
+                }
+            }
+
+            saveBtn.addEventListener("click", saveEdit);
+            input.addEventListener("keypress", (e) => {
+                if (e.key === "Enter") saveEdit();
+                if (e.key === "Escape") {
+                    const newTextEl = document.createElement("div");
+                    newTextEl.className = "reminder-text";
+                    newTextEl.id = `text-${reminderId}`;
+                    newTextEl.textContent = currentText;
+                    newTextEl.style.cssText = "cursor: pointer; user-select: none;";
+                    newTextEl.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        enterEditMode(reminderId, currentText, newTextEl);
+                    });
+                    wrapper.replaceWith(newTextEl);
+                }
+            });
         }
 
         async function completeReminder(id, element) {
