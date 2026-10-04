@@ -7,8 +7,8 @@
 │                         Browser                             │
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │            Frontend (index.html)                     │  │
-│  │  • Web Audio API (record)                            │  │
-│  │  • Fetch API (send audio)                            │  │
+│  │  • MediaRecorder (press-hold to record)              │  │
+│  │  • Fetch API (send audio blob)                       │  │
 │  │  • DOM rendering (reminder list)                     │  │
 │  │  • Undo timer logic                                  │  │
 │  └──────────────────────────────────────────────────────┘  │
@@ -20,8 +20,8 @@
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │              POST /api/transcribe                    │  │
 │  │  1. Receive audio blob                              │  │
-│  │  2. Call Whisper (speech-to-text)                   │  │
-│  │  3. Call Ollama (reminder extraction)               │  │
+│  │  2. Call faster-whisper (speech-to-text)            │  │
+│  │  3. Call Ollama + Gemma3:4b (reminder extraction)   │  │
 │  │  4. Store in reminders.json                         │  │
 │  │  5. Return reminder + ID                            │  │
 │  └──────────────────────────────────────────────────────┘  │
@@ -38,15 +38,15 @@
 └────────┬─────────────────┬────────────────────────────────┬─┘
          │                 │                                │
          ▼                 ▼                                ▼
-    ┌────────────┐   ┌──────────────┐            ┌─────────────────┐
-    │  Whisper   │   │    Ollama    │            │ reminders.json  │
-    │ (OpenAI)   │   │   + Gemma    │            │  (Local File)   │
-    │ Speech-to- │   │  Extract     │            │                 │
-    │   Text     │   │  Reminder    │            │ {                │
-    │            │   │              │            │   "active": [.], │
-    │ (Local)    │   │  (Local)     │            │   "undo_q": []  │
-    │ 75MB model │   │  2GB model   │            │ }               │
-    └────────────┘   └──────────────┘            └─────────────────┘
+    ┌────────────────┐   ┌──────────────────┐     ┌─────────────────┐
+    │faster-whisper  │   │  Ollama +        │     │ reminders.json  │
+    │  (int8 CPU)    │   │  Gemma3:4b       │     │  (Local File)   │
+    │ Speech-to-Text │   │  Extract         │     │                 │
+    │    ~1-2s       │   │  Reminder        │     │ {                │
+    │                │   │  ~2-3s           │     │   "active": [.], │
+    │ (Local)        │   │  (Local)         │     │   "undo_q": []  │
+    │ 75MB model     │   │  4GB model       │     │ }               │
+    └────────────────┘   └──────────────────┘     └─────────────────┘
 ```
 
 ---
@@ -73,18 +73,19 @@
 ### Step 2: Transcribe (Backend)
 
 ```python
-# Backend: app.py line 65
+# Backend: app.py
 1. Receive audio blob (temp file)
-2. model = whisper.load_model("base")
-3. result = model.transcribe(audio_path)
-4. transcription = result["text"].strip()
+2. model = WhisperModel("base", device="cpu", compute_type="int8")
+3. segments, info = model.transcribe(audio_path)
+4. transcription = " ".join([segment.text for segment in segments]).strip()
 
 # Example:
 # Input: [audio of "remember to call mom"]
 # Output: "Remember to call mom on Sunday afternoon"
 ```
 
-**Model**: `base` (140M params, ~1 sec per audio)
+**Model**: `base` (faster-whisper int8 quantized, ~1-2 sec per audio)
+**Why int8?**: 4x smaller, 2x faster, no accuracy loss for casual voice input
 
 ---
 
@@ -101,7 +102,7 @@ Transcription: "{transcription}"
 Reminder:"""
 
 response = requests.post("http://localhost:11434/api/generate", {
-    "model": "gemma",
+    "model": "gemma3:4b",
     "prompt": prompt,
     "stream": False
 })
@@ -111,11 +112,12 @@ response = requests.post("http://localhost:11434/api/generate", {
 - Input: "Remember to call mom on Sunday afternoon if I'm free"
 - Output: "Call mom on Sunday"
 
-**Why Gemma?**
-- Fast (2-3 sec on modern CPU)
+**Why Gemma3:4b?**
+- Very fast (1-2 sec on modern CPU)
 - Open-weight (no API key)
-- Small (2GB download)
-- Good instruction-following
+- Smaller (4GB download vs 5GB for full Gemma)
+- Better instruction-following
+- Lower latency than full Gemma
 
 **Why Ollama?**
 - Local inference (privacy)

@@ -15,7 +15,7 @@ Before you begin, make sure you have:
 ### Terminal Window #1: Ollama
 
 ```bash
-ollama run gemma
+ollama run gemma3:4b
 ```
 
 **Wait for it to say "listening on 127.0.0.1:11434"**
@@ -70,7 +70,7 @@ Press the 🎤 button. Talk. Reminders appear. ✨
 
 | Problem | Solution |
 |---------|----------|
-| "Ollama not running" | Run `ollama run gemma` in Terminal #1 |
+| "Ollama not running" | Run `ollama run gemma3:4b` in Terminal #1 |
 | "Backend not running" | Run `python app.py` in Terminal #2 |
 | Microphone won't work | Browser permission denied. Allow localhost:5000 to use mic |
 | App is slow | First run downloads Whisper model (~30 sec). After that, it's fast. |

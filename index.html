@@ -345,66 +345,14 @@
 
     <script>
         const API_URL = "http://localhost:5000";
+        let mediaRecorder;
+        let audioChunks = [];
+        let stream;
         let isRecording = false;
-        let recognition;
 
         const talkButton = document.getElementById("talkButton");
         const statusEl = document.getElementById("status");
         const remindersContainer = document.getElementById("remindersContainer");
-
-        // Web Speech API setup
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            console.warn("Web Speech API not available");
-        } else {
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = "en-US";
-
-            recognition.onstart = () => {
-                console.log("Recognition started");
-            };
-
-            recognition.onend = () => {
-                console.log("Recognition ended");
-                isRecording = false;
-                talkButton.classList.remove("recording");
-            };
-
-            recognition.onerror = (event) => {
-                console.error("Speech recognition error:", event.error);
-                showStatus("Speech error: " + event.error, "error");
-                isRecording = false;
-                talkButton.classList.remove("recording");
-            };
-
-            recognition.onresult = async (event) => {
-                let transcript = "";
-                let isFinal = false;
-                
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    transcript += event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        isFinal = true;
-                    }
-                }
-
-                console.log("Speech result:", { transcript, isFinal });
-
-                // Only process final results
-                if (isFinal) {
-                    if (transcript.trim()) {
-                        console.log("Final result, stopping and processing");
-                        recognition.stop(); // Stop listening immediately
-                        await handleTranscription(transcript);
-                    } else {
-                        showStatus("No speech detected", "error");
-                        recognition.stop();
-                    }
-                }
-            };
-        }
 
         // Initialize
         async function init() {
@@ -417,83 +365,68 @@
                 const res = await fetch(`${API_URL}/health`);
                 const data = await res.json();
                 console.log("Health check:", data);
-                if (data.ollama && data.ollama !== "ok") {
-                    showStatus("⚠️ Ollama not running (using fallback)", "error");
-                }
             } catch (e) {
                 showStatus("⚠️ Backend not running", "error");
             }
         }
 
-        // Recording with Web Speech API
+        // Recording with MediaRecorder
         talkButton.addEventListener("mousedown", startRecording);
         talkButton.addEventListener("touchstart", startRecording);
         document.addEventListener("mouseup", stopRecording);
         document.addEventListener("touchend", stopRecording);
 
-        function startRecording(e) {
+        async function startRecording(e) {
             e.preventDefault();
-            if (!recognition) {
-                showStatus("Speech recognition not supported", "error");
-                return;
-            }
             if (isRecording) return;
             
             try {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+                audioChunks = [];
                 isRecording = true;
+
+                mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                mediaRecorder.onstop = handleRecordingStop;
+
+                mediaRecorder.start();
                 talkButton.classList.add("recording");
                 showStatus("Listening...", "loading");
-                recognition.start();
-                
-                // Timeout after 10 seconds of listening
-                setTimeout(() => {
-                    if (isRecording) {
-                        console.log("Listening timeout - stopping");
-                        recognition.stop();
-                    }
-                }, 10000);
             } catch (e) {
-                console.log("Recognition error:", e);
-                isRecording = false;
-                talkButton.classList.remove("recording");
+                showStatus("Microphone access denied", "error");
             }
         }
 
-        function stopRecording(e) {
-            if (!isRecording || !recognition) return;
-            console.log("Stopping recognition");
-            try {
-                recognition.stop();
-            } catch (e) {
-                console.log("Error stopping recognition:", e);
-            }
+        function stopRecording() {
+            if (!isRecording || !mediaRecorder) return;
+            
+            isRecording = false;
+            mediaRecorder.stop();
+            talkButton.classList.remove("recording");
+            
+            stream.getTracks().forEach(track => track.stop());
         }
 
-        async function handleTranscription(transcript) {
-            console.log("Handling transcription:", transcript);
+        async function handleRecordingStop() {
+            const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
             showStatus("Thinking...", "loading");
 
             try {
-                // Send transcribed text to backend for reminder extraction
+                const formData = new FormData();
+                formData.append("audio", audioBlob);
+
                 const res = await fetch(`${API_URL}/api/transcribe`, {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        transcription: transcript
-                    })
+                    body: formData
                 });
 
                 if (!res.ok) {
-                    const error = await res.json();
-                    console.error("API error:", error);
-                    showStatus("Could not process: " + (error.error || "Unknown error"), "error");
+                    showStatus("Could not process audio", "error");
                     return;
                 }
 
                 const data = await res.json();
-                console.log("Result:", data);
+                console.log("Transcription result:", data);
                 
                 showStatus("✓ Saved!", "success");
                 setTimeout(() => showStatus(""), 2000);
@@ -502,11 +435,10 @@
             } catch (e) {
                 console.error("Error:", e);
                 showStatus("Error: " + e.message, "error");
-            } finally {
-                isRecording = false;
-                talkButton.classList.remove("recording");
             }
         }
+
+
 
         async function loadReminders() {
             try {

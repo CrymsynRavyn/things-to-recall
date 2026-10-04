@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
 """
 Things to Recall - Voice-first reminder app
-Backend: Flask + Web Speech API + Ollama (Gemma)
+Backend: Flask + faster-whisper + Ollama (Gemma3)
 """
 
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
+from faster_whisper import WhisperModel
 import requests
 import json
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
 import tempfile
-
-# Web Speech API transcription is handled by the browser
-# No Whisper needed!
 
 app = Flask(__name__)
 CORS(app)
@@ -45,14 +43,14 @@ def index():
 
 def call_ollama(prompt):
     """
-    Call Ollama with Gemma to extract reminder.
-    Ollama should be running: ollama run gemma
+    Call Ollama with Gemma3:4b to extract reminder.
+    Ollama should be running: ollama run gemma3:4b
     """
     try:
         response = requests.post(
             "http://localhost:11434/api/generate",
             json={
-                "model": "gemma",
+                "model": "gemma3:4b",
                 "prompt": prompt,
                 "stream": False,
             },
@@ -67,24 +65,35 @@ def call_ollama(prompt):
 @app.route("/api/transcribe", methods=["POST"])
 def transcribe():
     """
-    1. Receive transcription from browser Web Speech API
-    2. Extract reminder with Ollama
-    3. Store and return
+    1. Receive audio blob from browser
+    2. Transcribe with faster-whisper
+    3. Extract reminder with Ollama
+    4. Store and return
     """
-    data = request.get_json()
-    
-    if not data or "transcription" not in data:
-        return jsonify({"error": "No transcription provided"}), 400
+    if "audio" not in request.files:
+        return jsonify({"error": "No audio file"}), 400
 
-    transcription = data.get("transcription", "").strip()
+    audio_file = request.files["audio"]
     
-    if not transcription:
-        return jsonify({"error": "Empty transcription"}), 400
-    
-    print(f"Transcription: {transcription}")
+    # Save temp file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp:
+        audio_file.save(tmp.name)
+        temp_path = tmp.name
     
     try:
-        # Extract reminder with Ollama (optional - use transcription as fallback)
+        # Transcribe with faster-whisper
+        print("Transcribing with faster-whisper...")
+        model = WhisperModel("base", device="cpu", compute_type="int8")
+        segments, info = model.transcribe(temp_path)
+        transcription = " ".join([segment.text for segment in segments]).strip()
+        
+        if not transcription:
+            return jsonify({"error": "Could not transcribe audio"}), 400
+        
+        print(f"Transcription: {transcription}")
+    
+    try:
+        # Extract reminder with Ollama
         print("Extracting reminder with Ollama...")
         extraction_prompt = f"""Extract the core reminder from this transcription. Return ONLY a short, actionable reminder (under 100 chars). Do not add explanations.
 
@@ -101,12 +110,7 @@ Reminder:"""
         
         print(f"Extracted reminder: {reminder_text}")
         
-    except Exception as e:
-        print(f"Error extracting reminder: {str(e)}")
-        reminder_text = transcription[:100]
-    
-    # Store reminder
-    try:
+        # Store reminder
         data = load_reminders()
         new_reminder = {
             "id": int(datetime.now().timestamp() * 1000),
@@ -124,9 +128,12 @@ Reminder:"""
             "id": new_reminder["id"]
         })
     
-    except Exception as e:
-        print(f"Error storing reminder: {str(e)}")
-        return jsonify({"error": "Could not save reminder"}), 500
+    finally:
+        # Clean up temp file
+        try:
+            os.unlink(temp_path)
+        except:
+            pass
 
 @app.route("/api/reminders", methods=["GET"])
 def get_reminders():
@@ -208,12 +215,19 @@ def health():
     """Health check + dependency status"""
     status = {"app": "ok"}
     
-    # Check Ollama (Web Speech API is handled by browser)
+    # Check faster-whisper
+    try:
+        WhisperModel("base", device="cpu", compute_type="int8")
+        status["whisper"] = "ok"
+    except Exception as e:
+        status["whisper"] = f"error: {str(e)[:50]}"
+    
+    # Check Ollama
     try:
         requests.get("http://localhost:11434/api/tags", timeout=2)
         status["ollama"] = "ok"
     except:
-        status["ollama"] = "not running (required)"
+        status["ollama"] = "not running"
     
     return jsonify(status)
 
@@ -222,8 +236,8 @@ if __name__ == "__main__":
     print("Things to Recall - Backend Starting")
     print("="*60)
     print("\nRequired before starting:")
-    print("  1. Ollama running: ollama run gemma")
+    print("  1. Ollama running: ollama run gemma3:4b")
     print("  2. Check health at: http://localhost:5000/health")
     print("\n" + "="*60 + "\n")
     
-    app.run(debug=True, port=5000)
+    app.run(debug=False, host="0.0.0.0", port=5000)

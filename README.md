@@ -20,10 +20,10 @@ No settings, no menus, no friction.
 
 ## Tech Stack
 
-- **Frontend**: HTML/CSS/JS (runs in browser)
-- **Speech-to-Text**: Web Speech API (browser-native, no server dependency)
+- **Frontend**: HTML/CSS/JS with MediaRecorder
 - **Backend**: Python Flask
-- **Reminder Extraction**: Ollama + Gemma (local LLM, open-weight)
+- **Speech-to-Text**: faster-whisper (int8 CPU, 1-2 sec)
+- **Reminder Extraction**: Ollama + Gemma3:4b (local LLM, open-weight)
 - **Storage**: Local JSON file (no cloud, no databases)
 
 **All inference is local. No API keys. No closed services.**
@@ -32,12 +32,12 @@ No settings, no menus, no friction.
 
 ## How It Works
 
-1. **You speak** → Browser's Web Speech API transcribes your voice
-2. **Ollama extracts** → Local LLM refines the transcription into a clean reminder
-3. **Reminder saves** → Appears in your list
-4. **You check it off** → It fades away with a 10-second undo window
-
-**No Whisper needed.** The browser handles speech-to-text natively. Ollama is optional but recommended for reminder quality.
+1. **Press and hold the button** → Browser records audio via MediaRecorder
+2. **Release** → Audio blob uploads to Flask backend
+3. **faster-whisper transcribes** → Speech converted to text on the server
+4. **Ollama extracts** → Gemma3:4b refines transcription into clean reminder
+5. **Reminder appears** → In your list, ready to check off
+6. **Undo window** → 10 seconds to change your mind before deletion
 
 ---
 
@@ -60,7 +60,7 @@ This runs the Gemma language model locally on your machine.
 Open a terminal and run:
 
 ```bash
-ollama run gemma
+ollama run gemma3:4b
 ```
 
 This downloads Gemma (first time is ~2GB, takes a few minutes) and starts the Ollama server.
@@ -94,7 +94,7 @@ Things to Recall - Backend Starting
 ============================================================
 
 Required before starting:
-  1. Ollama running: ollama run gemma
+  1. Ollama running: ollama run gemma3:4b
   2. Check health at: http://localhost:5000/health
 
 ============================================================
@@ -136,7 +136,7 @@ That's it! 🎉
 
 **Error**: You see ⚠️ Ollama not running in the status bar
 
-**Fix**: Open a terminal and run `ollama run gemma`, then refresh the browser
+**Fix**: Open a terminal and run `ollama run gemma3:4b`, then refresh the browser
 
 ### "Backend not running"
 
