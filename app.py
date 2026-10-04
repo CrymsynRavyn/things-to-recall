@@ -21,6 +21,11 @@ CORS(app)
 STORAGE_FILE = "reminders.json"
 UNDO_TIMEOUT = 10  # seconds before item permanently deleted
 
+# Load Whisper model once at startup (not on every request)
+print("Loading Whisper model at startup...")
+whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
+print("Whisper model loaded.")
+
 def load_reminders():
     """Load reminders from disk"""
     if Path(STORAGE_FILE).exists():
@@ -81,10 +86,9 @@ def transcribe():
         temp_path = tmp.name
     
     try:
-        # Transcribe with faster-whisper
+        # Transcribe with faster-whisper (model loaded at startup)
         print("Transcribing with faster-whisper...")
-        model = WhisperModel("base", device="cpu", compute_type="int8")
-        segments, info = model.transcribe(temp_path)
+        segments, info = whisper_model.transcribe(temp_path)
         transcription = " ".join([segment.text for segment in segments]).strip()
         
         if not transcription:
@@ -94,11 +98,11 @@ def transcribe():
         
         # Extract reminder with Ollama
         print("Extracting reminder with Ollama...")
-        extraction_prompt = f"""Extract the core reminder from this transcription. Return ONLY a short, actionable reminder (under 100 chars). Do not add explanations.
+        extraction_prompt = f"""Shorten this transcription to a brief reminder. Keep only the key words from what was said. Do NOT interpret, change meaning, or add new information. Return only the shortened text, no explanation.
 
 Transcription: "{transcription}"
 
-Reminder:"""
+Shortened reminder:"""
         
         reminder_text = call_ollama(extraction_prompt)
         
@@ -218,12 +222,8 @@ def health():
     """Health check + dependency status"""
     status = {"app": "ok"}
     
-    # Check faster-whisper
-    try:
-        WhisperModel("base", device="cpu", compute_type="int8")
-        status["whisper"] = "ok"
-    except Exception as e:
-        status["whisper"] = f"error: {str(e)[:50]}"
+    # Whisper model is loaded at startup, so if we're here it's ok
+    status["whisper"] = "ok"
     
     # Check Ollama
     try:
