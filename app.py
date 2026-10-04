@@ -4,7 +4,7 @@ Things to Recall - Voice-first reminder app
 Backend: Flask + Whisper + Ollama (Gemma)
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from faster_whisper import WhisperModel
 import requests
@@ -32,6 +32,14 @@ def save_reminders(data):
     """Save reminders to disk"""
     with open(STORAGE_FILE, "w") as f:
         json.dump(data, f, indent=2)
+
+@app.route("/", methods=["GET"])
+def index():
+    """Serve the main HTML page"""
+    try:
+        return send_file("index.html", mimetype="text/html")
+    except FileNotFoundError:
+        return jsonify({"error": "index.html not found"}), 404
 
 def call_ollama(prompt):
     """
