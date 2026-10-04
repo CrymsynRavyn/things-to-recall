@@ -349,10 +349,12 @@
         let audioChunks = [];
         let stream;
         let isRecording = false;
+        let editingId = null; // Track which reminder is being edited
 
         const talkButton = document.getElementById("talkButton");
         const statusEl = document.getElementById("status");
         const remindersContainer = document.getElementById("remindersContainer");
+        let transcribeController = null; // For timeout/abort
 
         // Initialize
         async function init() {
@@ -410,6 +412,13 @@
         async function handleRecordingStop() {
             const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
             showStatus("Thinking...", "loading");
+            talkButton.disabled = true; // Disable while transcribing
+
+            // Set up abort controller with 60-second timeout
+            transcribeController = new AbortController();
+            const timeoutId = setTimeout(() => {
+                transcribeController.abort();
+            }, 60000);
 
             try {
                 const formData = new FormData();
@@ -417,11 +426,15 @@
 
                 const res = await fetch(`${API_URL}/api/transcribe`, {
                     method: "POST",
-                    body: formData
+                    body: formData,
+                    signal: transcribeController.signal
                 });
+
+                clearTimeout(timeoutId);
 
                 if (!res.ok) {
                     showStatus("Could not process audio", "error");
+                    talkButton.disabled = false;
                     return;
                 }
 
@@ -432,9 +445,18 @@
                 setTimeout(() => showStatus(""), 2000);
                 
                 await loadReminders();
+                talkButton.disabled = false;
             } catch (e) {
+                clearTimeout(timeoutId);
                 console.error("Error:", e);
-                showStatus("Error: " + e.message, "error");
+                
+                if (e.name === "AbortError") {
+                    showStatus("Request timed out (60s). Try again.", "error");
+                } else {
+                    showStatus("Error: " + e.message, "error");
+                }
+                
+                talkButton.disabled = false;
             }
         }
 
@@ -451,6 +473,11 @@
         }
 
         function renderReminders(data) {
+            // Skip render if user is currently editing a reminder
+            if (editingId !== null) {
+                return;
+            }
+
             const active = data.active || [];
             const undoQueue = data.undo_queue || [];
             
@@ -473,8 +500,10 @@
 
             // Undo queue
             undoQueue.forEach(reminder => {
-                const timeLeft = new Date(reminder.expires_at) - new Date();
-                const secondsLeft = Math.ceil(timeLeft / 1000);
+                // expires_at is Unix timestamp in milliseconds
+                const now = Date.now();
+                const timeLeft = reminder.expires_at - now;
+                const secondsLeft = Math.max(0, Math.ceil(timeLeft / 1000));
                 
                 const el = createReminderElement(reminder, true, secondsLeft);
                 remindersContainer.appendChild(el);
@@ -546,6 +575,8 @@
         }
 
         function enterEditMode(reminderId, currentText, textEl) {
+            editingId = reminderId; // Prevent re-render while editing
+            
             const input = document.createElement("input");
             input.type = "text";
             input.value = currentText;
@@ -592,6 +623,7 @@
                             enterEditMode(reminderId, newText, newTextEl);
                         });
                         wrapper.replaceWith(newTextEl);
+                        editingId = null; // Allow re-render again
                     } else {
                         alert("Could not save reminder");
                     }
@@ -614,6 +646,7 @@
                         enterEditMode(reminderId, currentText, newTextEl);
                     });
                     wrapper.replaceWith(newTextEl);
+                    editingId = null; // Allow re-render again
                 }
             });
         }

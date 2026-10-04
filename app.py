@@ -150,11 +150,11 @@ def get_reminders():
     """Get all active reminders"""
     data = load_reminders()
     
-    # Clean up expired undo items
-    now = datetime.now()
+    # Clean up expired undo items (expires_at is Unix timestamp in milliseconds)
+    now = int(datetime.now().timestamp() * 1000)
     data["undo_queue"] = [
         item for item in data["undo_queue"]
-        if datetime.fromisoformat(item["expires_at"]) > now
+        if item["expires_at"] > now
     ]
     
     save_reminders(data)
@@ -175,9 +175,9 @@ def complete_reminder(reminder_id):
     if not reminder:
         return jsonify({"error": "Reminder not found"}), 404
     
-    # Add to undo queue with expiration
+    # Add to undo queue with expiration (use Unix timestamp to avoid timezone issues)
     reminder["completed_at"] = datetime.now().isoformat()
-    reminder["expires_at"] = (datetime.now() + timedelta(seconds=UNDO_TIMEOUT)).isoformat()
+    reminder["expires_at"] = int((datetime.now() + timedelta(seconds=UNDO_TIMEOUT)).timestamp() * 1000)
     data["undo_queue"].append(reminder)
     
     save_reminders(data)

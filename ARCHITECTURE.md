@@ -285,6 +285,27 @@ Permanently removes from anywhere.
 
 ---
 
+### PUT /api/reminders/{id}
+
+Edit reminder text (tap-to-edit UI feature).
+
+**Request**:
+```json
+{ "text": "new reminder text" }
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "reminder": { "id": 123, "text": "new reminder text", ... }
+}
+```
+
+**Use case**: Fix transcription errors. E.g., Whisper transcribed "Food line" but user meant "Food Lion" — they tap the text, edit it, and save.
+
+---
+
 ### GET /health
 
 Checks system dependencies.

@@ -37,7 +37,27 @@ No settings, no menus, no friction.
 3. **faster-whisper transcribes** → Speech converted to text on the server
 4. **Ollama extracts** → Gemma3:4b refines transcription into clean reminder
 5. **Reminder appears** → In your list, ready to check off
-6. **Undo window** → 10 seconds to change your mind before deletion
+6. **Tap to edit** → Tap the reminder text to fix transcription errors (e.g., "Food line" → "Food Lion")
+7. **Check it off** → Checkbox fades the reminder away
+8. **Undo window** → 10 seconds to restore if you checked by mistake, then permanently deleted
+
+---
+
+## API Endpoints
+
+### Record & Transcribe
+- **POST `/api/transcribe`** — Upload audio, get transcribed and extracted reminder
+  - Body: `audio/webm` blob
+  - Response: `{ transcription, reminder, id }`
+
+### Manage Reminders
+- **GET `/api/reminders`** — Fetch all active and undo-queue reminders
+- **PUT `/api/reminders/<id>`** — Edit reminder text (tap-to-edit feature)
+  - Body: `{ "text": "new reminder text" }`
+  - Response: `{ success, reminder }`
+- **POST `/api/complete/<id>`** — Mark reminder as done (moves to undo queue)
+- **POST `/api/undo/<id>`** — Restore a completed reminder
+- **POST `/api/delete/<id>`** — Permanently delete a reminder
 
 ---
 
