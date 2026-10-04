@@ -21,12 +21,23 @@ No settings, no menus, no friction.
 ## Tech Stack
 
 - **Frontend**: HTML/CSS/JS (runs in browser)
+- **Speech-to-Text**: Web Speech API (browser-native, no server dependency)
 - **Backend**: Python Flask
-- **Speech-to-Text**: OpenAI Whisper (open-source)
 - **Reminder Extraction**: Ollama + Gemma (local LLM, open-weight)
 - **Storage**: Local JSON file (no cloud, no databases)
 
 **All inference is local. No API keys. No closed services.**
+
+---
+
+## How It Works
+
+1. **You speak** → Browser's Web Speech API transcribes your voice
+2. **Ollama extracts** → Local LLM refines the transcription into a clean reminder
+3. **Reminder saves** → Appears in your list
+4. **You check it off** → It fades away with a 10-second undo window
+
+**No Whisper needed.** The browser handles speech-to-text natively. Ollama is optional but recommended for reminder quality.
 
 ---
 

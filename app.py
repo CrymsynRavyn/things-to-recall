@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """
 Things to Recall - Voice-first reminder app
-Backend: Flask + Whisper + Ollama (Gemma)
+Backend: Flask + Web Speech API + Ollama (Gemma)
 """
 
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-import whisper
 import requests
 import json
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
 import tempfile
+
+# Web Speech API transcription is handled by the browser
+# No Whisper needed!
 
 app = Flask(__name__)
 CORS(app)
@@ -65,34 +67,24 @@ def call_ollama(prompt):
 @app.route("/api/transcribe", methods=["POST"])
 def transcribe():
     """
-    1. Receive audio blob
-    2. Transcribe with Whisper
-    3. Extract reminder with Ollama
-    4. Store and return
+    1. Receive transcription from browser Web Speech API
+    2. Extract reminder with Ollama
+    3. Store and return
     """
-    if "audio" not in request.files:
-        return jsonify({"error": "No audio file"}), 400
-
-    audio_file = request.files["audio"]
+    data = request.get_json()
     
-    # Save temp file
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp:
-        audio_file.save(tmp.name)
-        temp_path = tmp.name
+    if not data or "transcription" not in data:
+        return jsonify({"error": "No transcription provided"}), 400
+
+    transcription = data.get("transcription", "").strip()
+    
+    if not transcription:
+        return jsonify({"error": "Empty transcription"}), 400
+    
+    print(f"Transcription: {transcription}")
     
     try:
-        # Transcribe with Whisper
-        print("Transcribing with Whisper...")
-        model = whisper.load_model("base")
-        result = model.transcribe(temp_path)
-        transcription = result["text"].strip()
-        
-        if not transcription:
-            return jsonify({"error": "Could not transcribe audio"}), 400
-        
-        print(f"Transcription: {transcription}")
-        
-        # Extract reminder with Ollama
+        # Extract reminder with Ollama (optional - use transcription as fallback)
         print("Extracting reminder with Ollama...")
         extraction_prompt = f"""Extract the core reminder from this transcription. Return ONLY a short, actionable reminder (under 100 chars). Do not add explanations.
 
@@ -102,13 +94,19 @@ Reminder:"""
         
         reminder_text = call_ollama(extraction_prompt)
         
-        if not reminder_text:
-            # Fallback: use transcription directly
-            reminder_text = transcription[:100]
+        # If Ollama fails or returns nothing, use transcription directly
+        if not reminder_text or reminder_text.isspace():
+            print("Ollama unavailable, using transcription as reminder")
+            reminder_text = transcription[:100] if transcription else "Reminder"
         
         print(f"Extracted reminder: {reminder_text}")
         
-        # Store reminder
+    except Exception as e:
+        print(f"Error extracting reminder: {str(e)}")
+        reminder_text = transcription[:100]
+    
+    # Store reminder
+    try:
         data = load_reminders()
         new_reminder = {
             "id": int(datetime.now().timestamp() * 1000),
@@ -126,12 +124,9 @@ Reminder:"""
             "id": new_reminder["id"]
         })
     
-    finally:
-        # Clean up temp file
-        try:
-            os.unlink(temp_path)
-        except:
-            pass
+    except Exception as e:
+        print(f"Error storing reminder: {str(e)}")
+        return jsonify({"error": "Could not save reminder"}), 500
 
 @app.route("/api/reminders", methods=["GET"])
 def get_reminders():
@@ -213,14 +208,7 @@ def health():
     """Health check + dependency status"""
     status = {"app": "ok"}
     
-    # Check Whisper
-    try:
-        whisper.load_model("base", in_memory=False)
-        status["whisper"] = "ok"
-    except:
-        status["whisper"] = "not available"
-    
-    # Check Ollama
+    # Check Ollama (Web Speech API is handled by browser)
     try:
         requests.get("http://localhost:11434/api/tags", timeout=2)
         status["ollama"] = "ok"
