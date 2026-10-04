@@ -91,8 +91,7 @@ def transcribe():
             return jsonify({"error": "Could not transcribe audio"}), 400
         
         print(f"Transcription: {transcription}")
-    
-    try:
+        
         # Extract reminder with Ollama
         print("Extracting reminder with Ollama...")
         extraction_prompt = f"""Extract the core reminder from this transcription. Return ONLY a short, actionable reminder (under 100 chars). Do not add explanations.
@@ -127,6 +126,10 @@ Reminder:"""
             "reminder": reminder_text,
             "id": new_reminder["id"]
         })
+    
+    except Exception as e:
+        print(f"Error in transcribe: {str(e)}")
+        return jsonify({"error": str(e)}), 500
     
     finally:
         # Clean up temp file
